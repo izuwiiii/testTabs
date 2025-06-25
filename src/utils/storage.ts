@@ -1,5 +1,3 @@
-// utils/storage.ts
-
 export const saveToStorage = <T>(key: string, data: T): void => {
   try {
     const serializedData = JSON.stringify(data);
@@ -9,7 +7,10 @@ export const saveToStorage = <T>(key: string, data: T): void => {
   }
 };
 
-export const getFromStorage = <T = unknown>(key: string, defaultValue: T | null = null): T | null => {
+export const getFromStorage = <T = unknown>(
+  key: string,
+  defaultValue: T | null = null
+): T | null => {
   try {
     const serializedData = localStorage.getItem(key);
     if (serializedData === null) return defaultValue;
@@ -19,7 +20,6 @@ export const getFromStorage = <T = unknown>(key: string, defaultValue: T | null 
     return defaultValue;
   }
 };
-
 
 export const removeFromStorage = (key: string): void => {
   try {
