@@ -68,3 +68,21 @@
 .pinnedTab:hover {
   background-color: #f1f5f8;
 }
+
+.tabs-container::-webkit-scrollbar {
+  height: 4px;
+}
+
+.tabs-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tabs-container::-webkit-scrollbar-thumb {
+  background-color: #c4c4c4;
+  border-radius: 999px;
+  transition: background-color 0.2s ease;
+}
+
+.tabs-container::-webkit-scrollbar-thumb:hover {
+  background-color: #a0a0a0;
+}

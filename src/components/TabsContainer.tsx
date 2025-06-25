@@ -14,8 +14,8 @@ import {
 } from "@dnd-kit/sortable";
 import { useEffect, useRef, useState } from "react";
 import { TabItem } from "./TabItem";
-import type { ITabs } from "../types/Tabs";
-import { Link } from "react-router";
+import type { ITab } from "../types/Tab";
+import { Link, Outlet } from "react-router";
 import { getFromStorage, saveToStorage } from "../utils/storage";
 import ThumbtackIcon from "../assets/fi-rs-thumbtack.svg";
 
@@ -25,9 +25,9 @@ const STORAGE_KEYS = {
   PINNED_TABS: "pinned_tabs",
 };
 
-const restoreTabsOrder = (defaultTabs: ITabs[]): ITabs[] => {
+const restoreTabsOrder = (defaultTabs: ITab[]): ITab[] => {
   const savedOrder = getFromStorage(STORAGE_KEYS.TABS_ORDER);
-  const pinnedTabs = getFromStorage<ITabs[]>(STORAGE_KEYS.PINNED_TABS, []);
+  const pinnedTabs = getFromStorage<ITab[]>(STORAGE_KEYS.PINNED_TABS, []);
 
   const pinnedNames = new Set(pinnedTabs?.map((tab) => tab.name) ?? []);
 
@@ -37,7 +37,7 @@ const restoreTabsOrder = (defaultTabs: ITabs[]): ITabs[] => {
 
   try {
     const tabsMap = new Map(defaultTabs.map((tab) => [tab.name, tab]));
-    const restoredTabs: ITabs[] = [];
+    const restoredTabs: ITab[] = [];
 
     for (const tabName of savedOrder) {
       if (pinnedNames.has(tabName)) continue;
@@ -62,7 +62,7 @@ const restoreTabsOrder = (defaultTabs: ITabs[]): ITabs[] => {
   }
 };
 
-const tabs: ITabs[] = [
+const tabs: ITab[] = [
   { img: "src/assets/fi-rs-apps.svg", name: "Dashboard" },
   { img: "src/assets/fi-rs-bank.svg", name: "Banking" },
   { img: "src/assets/fi-rs-phone-call.svg", name: "Telefonie" },
@@ -80,12 +80,12 @@ const tabs: ITabs[] = [
 
 export const TabsContainer = () => {
   const [activeTab, setActiveTab] = useState("");
-  const [items, setItems] = useState<ITabs[]>(() => restoreTabsOrder(tabs));
+  const [items, setItems] = useState<ITab[]>(() => restoreTabsOrder(tabs));
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [pinnedTabs, setPinnedTabs] = useState<ITabs[]>(() =>
-    getFromStorage<ITabs[]>(STORAGE_KEYS.PINNED_TABS, [])
+  const [pinnedTabs, setPinnedTabs] = useState<ITab[]>(() =>
+    getFromStorage<ITab[]>(STORAGE_KEYS.PINNED_TABS, [])
   );
-  const [contextTab, setContextTab] = useState<ITabs | null>(null);
+  const [contextTab, setContextTab] = useState<ITab | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -174,8 +174,9 @@ export const TabsContainer = () => {
   const handleCloseMenu = () => setMenuPosition(null);
 
   return (
-    <div className="p-6 overflow-hidden" onClick={() => handleCloseMenu()}>
-      <div style={{ flex: 1 }}>
+    <>
+      {" "}
+      <div className="p-6 overflow-hidden" onClick={() => handleCloseMenu()}>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -188,10 +189,8 @@ export const TabsContainer = () => {
             strategy={horizontalListSortingStrategy}
           >
             <div
-              className="flex overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
+              className="tabs-container flex overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
               style={{
-                scrollbarWidth: "thin",
-                scrollbarColor: "#7F858D",
                 height: "48px",
                 alignItems: "center",
                 gap: "8px",
@@ -212,6 +211,12 @@ export const TabsContainer = () => {
                     flexShrink: 0,
                     height: "40px",
                     minWidth: "40px",
+                  }}
+                  onClick={() => setActiveTab(tab.name)}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    setContextTab(tab);
+                    setMenuPosition({ x: event.clientX, y: event.clientY });
                   }}
                 >
                   <Link
@@ -241,12 +246,6 @@ export const TabsContainer = () => {
                         display: "block",
                         flexShrink: 0,
                       }}
-                      onClick={() => setActiveTab(tab.name)}
-                      onContextMenu={(event) => {
-                        event.preventDefault();
-                        setContextTab(tab);
-                        setMenuPosition({ x: event.clientX, y: event.clientY });
-                      }}
                     />
                   </Link>
                 </div>
@@ -265,14 +264,17 @@ export const TabsContainer = () => {
               )}
 
               {items.map((tab) => (
-                <Link to={`/${tab.name}`} key={tab.name}>
+                <Link
+                  to={`/${tab.name}`}
+                  key={tab.name}
+                  onClick={() => setActiveTab(tab.name)}
+                >
                   <TabItem
                     key={tab.name}
                     id={tab.name}
                     img={tab.img}
                     activeTab={activeTab}
                     setActiveTab={setActiveTab}
-                    onClick={() => setActiveTab(tab.name)}
                     data-id={tab.name}
                     className="sortable-item"
                   />
@@ -371,6 +373,7 @@ export const TabsContainer = () => {
           </ul>
         )}
       </div>
-    </div>
+      <Outlet />
+    </>
   );
 };
