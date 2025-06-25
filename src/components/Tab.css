@@ -39,3 +39,28 @@
   background-color: #4690e2;
   opacity: 100;
 }
+
+.sortable-item {
+  padding: 15px 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  min-width: 140px;
+  max-width: 200px;
+  cursor: pointer;
+  z-index: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 1;
+  visibility: visible;
+}
+
+.sortable-item--dragging {
+  background-color: transparent;
+  color: transparent;
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+}

@@ -2,6 +2,7 @@ import {
   closestCenter,
   DndContext,
   type DragEndEvent,
+  DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
@@ -11,13 +12,47 @@ import {
   horizontalListSortingStrategy,
   SortableContext,
 } from "@dnd-kit/sortable";
-import { useState } from "react";
-import { SortableItem } from "./SortebleItem";
+import { useEffect, useRef, useState } from "react";
+import { TabItem } from "./TabItem";
+import type { ITabs } from "../types/Tabs";
+import { Link } from "react-router";
+import { getFromStorage, saveToStorage } from "../utils/storage";
+import ThumbtackIcon from "../assets/fi-rs-thumbtack.svg";
 
-interface ITabs {
-  img: string;
-  name: string;
-}
+const STORAGE_KEYS = {
+  TABS_ORDER: "tabs_order",
+  ACTIVE_TAB: "active_tab",
+};
+
+const restoreTabsOrder = (defaultTabs: ITabs[]): ITabs[] => {
+  const savedOrder = getFromStorage(STORAGE_KEYS.TABS_ORDER);
+
+  if (!savedOrder || !Array.isArray(savedOrder)) {
+    return defaultTabs;
+  }
+
+  try {
+    const tabsMap = new Map(defaultTabs.map((tab) => [tab.name, tab]));
+    const restoredTabs: ITabs[] = [];
+
+    for (const tabName of savedOrder) {
+      const tab = tabsMap.get(tabName);
+      if (tab) {
+        restoredTabs.push(tab);
+        tabsMap.delete(tabName);
+      }
+    }
+
+    for (const [, tab] of tabsMap) {
+      restoredTabs.push(tab);
+    }
+
+    return restoredTabs;
+  } catch (error) {
+    console.error("Error:", error);
+    return defaultTabs;
+  }
+};
 
 const tabs: ITabs[] = [
   { img: "src/assets/fi-rs-apps.svg", name: "Dashboard" },
@@ -37,7 +72,10 @@ const tabs: ITabs[] = [
 
 export const TabsContainer = () => {
   const [activeTab, setActiveTab] = useState("");
-  const [items, setItems] = useState<ITabs[]>(tabs);
+  const [items, setItems] = useState<ITabs[]>(() => restoreTabsOrder(tabs));
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [pinnedTabs, setPinnedTabs] = useState<ITabs[]>([]);
+  const [contextTab, setContextTab] = useState<ITabs | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -46,6 +84,13 @@ export const TabsContainer = () => {
       },
     })
   );
+  const handleDragStart = (event: any) => {
+    setActiveId(event.active.id);
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -55,32 +100,180 @@ export const TabsContainer = () => {
       const newIndex = items.findIndex((item) => item.name === over.id);
       setItems(arrayMove(items, oldIndex, newIndex));
     }
+
+    setActiveId(null);
   };
 
+  const menuRef = useRef<HTMLUListElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        handleCloseMenu();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    const tabNames = items.map((tab) => tab.name);
+    saveToStorage(STORAGE_KEYS.TABS_ORDER, tabNames);
+  }, [items]);
+
+  useEffect(() => {
+    if (activeTab) {
+      saveToStorage(STORAGE_KEYS.ACTIVE_TAB, activeTab);
+    }
+  }, [activeTab]);
+
+  const activeItem = activeId
+    ? items.find((item) => item.name === activeId)
+    : null;
+
+  const [menuPosition, setMenuPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const handleContextMenu = (event: React.MouseEvent) => {
+    event.preventDefault();
+
+    let target = event.target as HTMLElement;
+
+    while (target && !target.classList.contains("sortable-item")) {
+      target = target.parentElement as HTMLElement;
+    }
+
+    if (!target) return;
+
+    const tabName = target.getAttribute("data-id");
+    if (!tabName) return;
+
+    const tab = items.find((t) => t.name === tabName);
+    if (!tab) return;
+
+    setContextTab(tab);
+    setMenuPosition({ x: event.clientX, y: event.clientY });
+  };
+
+  const handleCloseMenu = () => setMenuPosition(null);
+
   return (
-    <div className="p-6">
+    <div className="p-6 overflow-hidden" onClick={() => handleCloseMenu()}>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
+        onDragStart={handleDragStart}
+        onDragCancel={handleDragCancel}
       >
         <SortableContext
           items={items.map((item) => item.name)}
           strategy={horizontalListSortingStrategy}
         >
-          <div className="flex">
+          <div
+            className="flex overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
+            style={{
+              scrollbarWidth: "thin",
+              scrollbarColor: "#7F858D",
+              height: "48px",
+              alignItems: "center",
+            }}
+            onContextMenu={(e) => {
+              if (e.target.className.split(" ").includes("sortable-item")) {
+                handleContextMenu(e);
+              }
+            }}
+          >
             {items.map((tab) => (
-              <SortableItem
-                key={tab.name}
-                id={tab.name}
-                img={tab.img}
-                activeTab={activeTab}
-                onClick={() => setActiveTab(tab.name)}
-              />
+              <Link to={`/${tab.name}`} key={tab.name}>
+                <TabItem
+                  key={tab.name}
+                  id={tab.name}
+                  img={tab.img}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  onClick={() => setActiveTab(tab.name)}
+                  data-id={tab.name}
+                  className="sortable-item"
+                />
+              </Link>
             ))}
           </div>
         </SortableContext>
+
+        <DragOverlay>
+          {activeItem ? (
+            <div
+              style={{
+                padding: "15px 12px",
+                backgroundColor: "#7F858D",
+                color: "#FFFFFF",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: "10px",
+                minWidth: "140px",
+                maxWidth: "200px",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                borderRadius: "4px",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+              }}
+            >
+              <img
+                src={activeItem.img}
+                alt={activeItem.name}
+                style={{ flexShrink: 0, width: "20px", height: "20px" }}
+              />
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                {activeItem.name}
+              </span>
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
+      {menuPosition && (
+        <ul
+          ref={menuRef}
+          style={{
+            position: "absolute",
+            top: menuPosition.y,
+            left: menuPosition.x,
+            backgroundColor: "white",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            padding: "4px 0",
+            listStyle: "none",
+            zIndex: 1000,
+            width: "180px",
+          }}
+          onClick={() => {
+            handleCloseMenu();
+          }}
+        >
+          <li
+            className="flex items-center gap-2 px-4 py-2 text-[#7F858D] hover:bg-gray-100 cursor-pointer transition"
+            onClick={() => {
+              if (contextTab) {
+                if (!pinnedTabs.includes(contextTab)) {
+                  setPinnedTabs((prev) => [...prev, contextTab]);
+                }
+              }
+              handleCloseMenu();
+            }}
+          >
+            <img src={ThumbtackIcon} alt="thumbtack" />
+            Tab anpinnen
+          </li>
+        </ul>
+      )}
+      {/* <TabDropdown tabs={overflowTabs} onSelect={handleOverflowTabSelect} /> */}
     </div>
   );
 };
