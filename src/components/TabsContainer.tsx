@@ -82,8 +82,8 @@ export const TabsContainer = () => {
   const [activeTab, setActiveTab] = useState("");
   const [items, setItems] = useState<ITab[]>(() => restoreTabsOrder(tabs));
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [pinnedTabs, setPinnedTabs] = useState<ITab[]>(() =>
-    getFromStorage<ITab[]>(STORAGE_KEYS.PINNED_TABS, [])
+  const [pinnedTabs, setPinnedTabs] = useState<ITab[]>(
+    () => getFromStorage<ITab[]>(STORAGE_KEYS.PINNED_TABS, []) ?? []
   );
   const [contextTab, setContextTab] = useState<ITab | null>(null);
 
@@ -196,7 +196,8 @@ export const TabsContainer = () => {
                 gap: "8px",
               }}
               onContextMenu={(e) => {
-                if (e.target.className.split(" ").includes("sortable-item")) {
+                const target = e.target as HTMLElement;
+                if (target.className.split(" ").includes("sortable-item")) {
                   handleContextMenu(e);
                 }
               }}

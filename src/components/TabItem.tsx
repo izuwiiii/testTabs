@@ -11,6 +11,7 @@ interface Props {
   activeTab: string;
   setActiveTab: React.Dispatch<React.SetStateAction<string>>;
   onClick?: (tab: string) => void;
+  className?: string;
 }
 
 export const TabItem: React.FC<Props> = ({
